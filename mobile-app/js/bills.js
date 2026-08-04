@@ -992,46 +992,72 @@ Thank you for your business! 🙏
         const qty = delMap[cid];
         const name = custMap[cid] || `Customer #${cid}`;
         
-        // NO default rates! Blank if no previous rate exists
-        const rawJar = rateMap[cid] ? rateMap[cid].jar : null;
-        const rawBot = rateMap[cid] ? rateMap[cid].bottle : null;
+        // NO default rates! ONLY use previous rate if it exists and is > 0
+        const rawJar = rateMap[cid] ? Number(rateMap[cid].jar) : 0;
+        const rawBot = rateMap[cid] ? Number(rateMap[cid].bottle) : 0;
         
-        const jarRateVal = (rawJar !== null && rawJar !== undefined && rawJar > 0) ? rawJar : '';
-        const botRateVal = (rawBot !== null && rawBot !== undefined && rawBot > 0) ? rawBot : '';
+        const jarRateVal = rawJar > 0 ? rawJar : '';
+        const botRateVal = rawBot > 0 ? rawBot : '';
         
         const isJarMissing = (qty.jars > 0 && !jarRateVal);
         const isBotMissing = (qty.bottles > 0 && !botRateVal);
+        const isAnyMissing = isJarMissing || isBotMissing;
         
         const jarStyle = isJarMissing 
-          ? 'border: 2px solid #ef4444; background: rgba(239, 68, 68, 0.15); color: #ef4444;' 
+          ? 'border: 2px solid #ef4444; background: #fef2f2; color: #dc2626; box-shadow: 0 0 6px rgba(239, 68, 68, 0.4);' 
           : 'border: 1px solid var(--border-slate); background: var(--bg-card); color: var(--text-primary);';
           
         const botStyle = isBotMissing 
-          ? 'border: 2px solid #ef4444; background: rgba(239, 68, 68, 0.15); color: #ef4444;' 
+          ? 'border: 2px solid #ef4444; background: #fef2f2; color: #dc2626; box-shadow: 0 0 6px rgba(239, 68, 68, 0.4);' 
           : 'border: 1px solid var(--border-slate); background: var(--bg-card); color: var(--text-primary);';
         
         return `
           <tr style="border-bottom:1px solid var(--border-slate-bright);">
             <td style="padding:10px 4px; font-weight:bold; color:var(--text-primary);">
-              <div style="max-width:130px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${name}</div>
+              <div style="display:flex; align-items:center; max-width:130px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                <span>${name}</span>
+                ${isAnyMissing ? '<span id="badge-warn-'+cid+'" style="background:#ef4444; color:white; font-size:8px; font-weight:800; padding:1px 4px; border-radius:3px; margin-left:4px; flex-shrink:0;">⚠️ RATE</span>' : ''}
+              </div>
               <div style="font-size:10px; color:var(--text-secondary); font-weight:normal;">
                 Delivered: ${qty.jars} Jars / ${qty.bottles} Bottles
               </div>
             </td>
             <td style="padding:10px 4px; text-align:center;">
-              <div style="display:inline-flex; align-items:center; gap:2px;">
-                <span style="font-size:10px; color:var(--text-secondary);">₹</span>
-                <input type="number" id="jar-rate-${cid}" value="${jarRateVal}" placeholder="${qty.jars > 0 ? 'Rate' : '0'}"
-                  oninput="this.style.border = (parseFloat(this.value)>0 || ${qty.jars === 0}) ? '1px solid var(--border-slate)' : '2px solid #ef4444'; this.style.background = (parseFloat(this.value)>0 || ${qty.jars === 0}) ? 'var(--bg-card)' : 'rgba(239, 68, 68, 0.15)';"
-                  style="width:52px; padding:5px; border-radius:4px; text-align:center; font-size:12px; font-weight:bold; ${jarStyle}">
+              <div style="display:flex; flex-direction:column; align-items:center;">
+                <div style="display:inline-flex; align-items:center; gap:2px;">
+                  <span style="font-size:10px; color:var(--text-secondary);">₹</span>
+                  <input type="number" id="jar-rate-${cid}" value="${jarRateVal}" placeholder="${qty.jars > 0 ? '⚠️' : '0'}"
+                    oninput="
+                      const val = parseFloat(this.value);
+                      const isOk = (val > 0 || ${qty.jars === 0});
+                      this.style.border = isOk ? '1px solid var(--border-slate)' : '2px solid #ef4444';
+                      this.style.background = isOk ? 'var(--bg-card)' : '#fef2f2';
+                      this.style.boxShadow = isOk ? 'none' : '0 0 6px rgba(239, 68, 68, 0.4)';
+                      const warn = document.getElementById('jar-warn-${cid}');
+                      if(warn) warn.style.display = isOk ? 'none' : 'block';
+                    "
+                    style="width:52px; padding:5px; border-radius:4px; text-align:center; font-size:12px; font-weight:bold; ${jarStyle}">
+                </div>
+                <div id="jar-warn-${cid}" style="color:#ef4444; font-size:8px; font-weight:bold; margin-top:2px; display:${isJarMissing ? 'block' : 'none'};">⚠️ Rate Missing</div>
               </div>
             </td>
             <td style="padding:10px 4px; text-align:center;">
-              <div style="display:inline-flex; align-items:center; gap:2px;">
-                <span style="font-size:10px; color:var(--text-secondary);">₹</span>
-                <input type="number" id="bot-rate-${cid}" value="${botRateVal}" placeholder="${qty.bottles > 0 ? 'Rate' : '0'}"
-                  oninput="this.style.border = (parseFloat(this.value)>0 || ${qty.bottles === 0}) ? '1px solid var(--border-slate)' : '2px solid #ef4444'; this.style.background = (parseFloat(this.value)>0 || ${qty.bottles === 0}) ? 'var(--bg-card)' : 'rgba(239, 68, 68, 0.15)';"
-                  style="width:52px; padding:5px; border-radius:4px; text-align:center; font-size:12px; font-weight:bold; ${botStyle}">
+              <div style="display:flex; flex-direction:column; align-items:center;">
+                <div style="display:inline-flex; align-items:center; gap:2px;">
+                  <span style="font-size:10px; color:var(--text-secondary);">₹</span>
+                  <input type="number" id="bot-rate-${cid}" value="${botRateVal}" placeholder="${qty.bottles > 0 ? '⚠️' : '0'}"
+                    oninput="
+                      const val = parseFloat(this.value);
+                      const isOk = (val > 0 || ${qty.bottles === 0});
+                      this.style.border = isOk ? '1px solid var(--border-slate)' : '2px solid #ef4444';
+                      this.style.background = isOk ? 'var(--bg-card)' : '#fef2f2';
+                      this.style.boxShadow = isOk ? 'none' : '0 0 6px rgba(239, 68, 68, 0.4)';
+                      const warn = document.getElementById('bot-warn-${cid}');
+                      if(warn) warn.style.display = isOk ? 'none' : 'block';
+                    "
+                    style="width:52px; padding:5px; border-radius:4px; text-align:center; font-size:12px; font-weight:bold; ${botStyle}">
+                </div>
+                <div id="bot-warn-${cid}" style="color:#ef4444; font-size:8px; font-weight:bold; margin-top:2px; display:${isBotMissing ? 'block' : 'none'};">⚠️ Rate Missing</div>
               </div>
             </td>
           </tr>
