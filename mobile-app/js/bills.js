@@ -907,24 +907,55 @@ Thank you for your business! 🙏
       });
       
       window.executeMobileBulkBilling = async function() {
-          App.confirm('Generate ' + unbilledIds.length + ' invoices? Please ensure all rates are entered correctly.', () => {
-              App.confirm('WARNING: Final Confirmation. Are you ABSOLUTELY sure? This will lock in the rates and instantly generate the bills.', async () => {
-                  // IMPORTANT: Capture all rate values from DOM BEFORE closing the modal
-                  const capturedRates = {};
-                  for (let cid of unbilledIds) {
-                      const jarEl = document.getElementById(`jar-rate-${cid}`);
-                      const botEl = document.getElementById(`bot-rate-${cid}`);
-                      capturedRates[cid] = {
-                          jarRate: jarEl ? (parseFloat(jarEl.value) || 0) : 0,
-                          botRate: botEl ? (parseFloat(botEl.value) || 0) : 0
-                      };
+          // IMPORTANT: Capture all rate values from DOM BEFORE closing the modal
+          const capturedRates = {};
+          const missingRateNames = [];
+          
+          for (let cid of unbilledIds) {
+              const qty = delMap[cid];
+              const jarEl = document.getElementById(`jar-rate-${cid}`);
+              const botEl = document.getElementById(`bot-rate-${cid}`);
+              
+              const jarRate = jarEl ? (parseFloat(jarEl.value) || 0) : 0;
+              const botRate = botEl ? (parseFloat(botEl.value) || 0) : 0;
+              
+              const isJarMissing = (qty.jars > 0 && jarRate <= 0);
+              const isBotMissing = (qty.bottles > 0 && botRate <= 0);
+              
+              if (isJarMissing || isBotMissing) {
+                  missingRateNames.push(custMap[cid] || `Customer #${cid}`);
+                  if (jarEl && isJarMissing) {
+                      jarEl.style.border = '2px solid #ef4444';
+                      jarEl.style.background = 'rgba(239, 68, 68, 0.15)';
                   }
-                  
+                  if (botEl && isBotMissing) {
+                      botEl.style.border = '2px solid #ef4444';
+                      botEl.style.background = 'rgba(239, 68, 68, 0.15)';
+                  }
+              }
+              
+              capturedRates[cid] = { jarRate, botRate, isInvalid: (isJarMissing || isBotMissing) };
+          }
+          
+          const validCids = unbilledIds.filter(cid => !capturedRates[cid].isInvalid);
+          
+          if (validCids.length === 0) {
+              App.toast('Cannot generate: Please enter rates for highlighted red boxes!', 'error');
+              return;
+          }
+          
+          let confirmMsg = 'Generate ' + validCids.length + ' invoices?';
+          if (missingRateNames.length > 0) {
+              confirmMsg = `⚠️ ${missingRateNames.length} customers have missing rates (highlighted in red) and will NOT be billed until rates are entered.\n\nGenerate bills for the remaining ${validCids.length} customers?`;
+          }
+          
+          App.confirm(confirmMsg, () => {
+              App.confirm('WARNING: Final Confirmation. Are you sure you want to generate ' + validCids.length + ' bills?', async () => {
                   App.closeModal();
-                  App.toast('Processing ' + unbilledIds.length + ' bills...', 'info');
+                  App.toast('Processing ' + validCids.length + ' bills...', 'info');
                   
                   let successCount = 0;
-                  for (let cid of unbilledIds) {
+                  for (let cid of validCids) {
                       const qty = delMap[cid];
                       const jarRate = capturedRates[cid].jarRate;
                       const botRate = capturedRates[cid].botRate;
@@ -960,8 +991,24 @@ Thank you for your business! 🙏
       const listHtml = unbilledIds.map(cid => {
         const qty = delMap[cid];
         const name = custMap[cid] || `Customer #${cid}`;
-        const prevJarRate = rateMap[cid] ? rateMap[cid].jar : 40;
-        const prevBotRate = rateMap[cid] ? rateMap[cid].bottle : 30;
+        
+        // NO default rates! Blank if no previous rate exists
+        const rawJar = rateMap[cid] ? rateMap[cid].jar : null;
+        const rawBot = rateMap[cid] ? rateMap[cid].bottle : null;
+        
+        const jarRateVal = (rawJar !== null && rawJar !== undefined && rawJar > 0) ? rawJar : '';
+        const botRateVal = (rawBot !== null && rawBot !== undefined && rawBot > 0) ? rawBot : '';
+        
+        const isJarMissing = (qty.jars > 0 && !jarRateVal);
+        const isBotMissing = (qty.bottles > 0 && !botRateVal);
+        
+        const jarStyle = isJarMissing 
+          ? 'border: 2px solid #ef4444; background: rgba(239, 68, 68, 0.15); color: #ef4444;' 
+          : 'border: 1px solid var(--border-slate); background: var(--bg-card); color: var(--text-primary);';
+          
+        const botStyle = isBotMissing 
+          ? 'border: 2px solid #ef4444; background: rgba(239, 68, 68, 0.15); color: #ef4444;' 
+          : 'border: 1px solid var(--border-slate); background: var(--bg-card); color: var(--text-primary);';
         
         return `
           <tr style="border-bottom:1px solid var(--border-slate-bright);">
@@ -974,13 +1021,17 @@ Thank you for your business! 🙏
             <td style="padding:10px 4px; text-align:center;">
               <div style="display:inline-flex; align-items:center; gap:2px;">
                 <span style="font-size:10px; color:var(--text-secondary);">₹</span>
-                <input type="number" id="jar-rate-${cid}" value="${prevJarRate}" style="width:52px; padding:5px; border:1px solid var(--border-slate); border-radius:4px; background:var(--bg-card); color:var(--text-primary); text-align:center; font-size:12px; font-weight:bold;">
+                <input type="number" id="jar-rate-${cid}" value="${jarRateVal}" placeholder="${qty.jars > 0 ? 'Rate' : '0'}"
+                  oninput="this.style.border = (parseFloat(this.value)>0 || ${qty.jars === 0}) ? '1px solid var(--border-slate)' : '2px solid #ef4444'; this.style.background = (parseFloat(this.value)>0 || ${qty.jars === 0}) ? 'var(--bg-card)' : 'rgba(239, 68, 68, 0.15)';"
+                  style="width:52px; padding:5px; border-radius:4px; text-align:center; font-size:12px; font-weight:bold; ${jarStyle}">
               </div>
             </td>
             <td style="padding:10px 4px; text-align:center;">
               <div style="display:inline-flex; align-items:center; gap:2px;">
                 <span style="font-size:10px; color:var(--text-secondary);">₹</span>
-                <input type="number" id="bot-rate-${cid}" value="${prevBotRate}" style="width:52px; padding:5px; border:1px solid var(--border-slate); border-radius:4px; background:var(--bg-card); color:var(--text-primary); text-align:center; font-size:12px; font-weight:bold;">
+                <input type="number" id="bot-rate-${cid}" value="${botRateVal}" placeholder="${qty.bottles > 0 ? 'Rate' : '0'}"
+                  oninput="this.style.border = (parseFloat(this.value)>0 || ${qty.bottles === 0}) ? '1px solid var(--border-slate)' : '2px solid #ef4444'; this.style.background = (parseFloat(this.value)>0 || ${qty.bottles === 0}) ? 'var(--bg-card)' : 'rgba(239, 68, 68, 0.15)';"
+                  style="width:52px; padding:5px; border-radius:4px; text-align:center; font-size:12px; font-weight:bold; ${botStyle}">
               </div>
             </td>
           </tr>
