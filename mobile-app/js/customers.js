@@ -248,8 +248,8 @@ const Customers = {
         status: 'PENDING'
       };
       
-      const { error } = await supabase.from('bills').insert(record);
-      if (error) throw error;
+      const res = await OfflineVault.safeInsert('bills', record);
+      if (res.error) throw res.error;
       
       App.closeModal();
       App.toast('Previous due added successfully!', 'success');
@@ -433,8 +433,8 @@ const Customers = {
         route: document.getElementById('custRoute').value.trim(),
         email: document.getElementById('custEmail').value.trim()
       };
-      const { error } = await supabase.from('customers').insert(record);
-      if (error) throw error;
+      const res = await OfflineVault.safeWrite('INSERT', 'customers', record);
+      if (res.error) throw res.error;
       App.closeModal();
       App.toast('Customer profile created successfully!');
       this.load();
