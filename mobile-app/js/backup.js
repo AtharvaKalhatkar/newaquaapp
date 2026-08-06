@@ -315,7 +315,7 @@ const Backup = {
 
       if (navigator.canShare && navigator.canShare({ files: [f] })) {
         try {
-          await navigator.share({ files: [f], title: 'Invoice', text: `Invoice for ${inv.name}` });
+          await navigator.share({ files: [f], title: 'Invoice' });
         } catch (err) {
           console.warn('Share failed, falling back to download', err);
           downloadFallback();

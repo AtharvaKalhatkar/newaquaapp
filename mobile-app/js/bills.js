@@ -430,12 +430,12 @@ Thank you for your business! 🙏
         const blob = await __genPDF(html);
         const f = new File([blob], `Invoice_${decodedName}.pdf`, { type: 'application/pdf' });
         if (navigator.canShare && navigator.canShare({ files: [f] })) {
-          await navigator.share({ files: [f], text: msg });
+          await navigator.share({ files: [f] });
           return;
         }
       } catch(e) { console.warn('Web Share failed, falling back:', e); }
 
-      // Fallback: download PDF + open WhatsApp text
+      // Fallback: download PDF + open WhatsApp
       try {
         const dateStr = new Date(curYear, curMonth, 1).toLocaleDateString('en-IN');
         const upiLink = `upi://pay?pa=7030355656-6@ibl&pn=Bhairavnath%20Cool%20Aqua&am=${t}&cu=INR`;
@@ -462,10 +462,10 @@ Thank you for your business! 🙏
         a.download = `Invoice_${decodedName}.pdf`;
         a.click();
         URL.revokeObjectURL(url);
-        App.toast('PDF downloaded. Now sharing via WhatsApp...', 'info');
+        App.toast('PDF downloaded.', 'info');
       } catch(e) { console.warn('PDF download failed:', e); }
       
-      window.open(`https://wa.me/${mob}?text=${encodeURIComponent(msg)}`, '_blank');
+      if (mob) window.open(`https://wa.me/${mob}`, '_blank');
     };
 
     window.printTempBill = async function() {
@@ -685,12 +685,12 @@ Thank you for your business! 🙏
         const blob = await __genPDF(html);
         const f = new File([blob], `Invoice_${name}.pdf`, { type: 'application/pdf' });
         if (navigator.canShare && navigator.canShare({ files: [f] })) {
-          await navigator.share({ files: [f], text: msg });
+          await navigator.share({ files: [f] });
           return;
         }
       } catch(e) { console.warn('Web Share failed, falling back:', e); }
 
-      // Fallback: download PDF + open WhatsApp text
+      // Fallback: download PDF + open WhatsApp
       try {
         const dateStr = new Date(b.bill_year, b.bill_month, 1).toLocaleDateString('en-IN');
         const upiLink = `upi://pay?pa=7030355656-6@ibl&pn=Bhairavnath%20Cool%20Aqua&am=${t}&cu=INR`;
@@ -717,10 +717,10 @@ Thank you for your business! 🙏
         a.download = `Invoice_${name}.pdf`;
         a.click();
         URL.revokeObjectURL(url);
-        App.toast('PDF downloaded. Now sharing via WhatsApp...', 'info');
+        App.toast('PDF downloaded.', 'info');
       } catch(e) { console.warn('PDF download failed:', e); }
       
-      window.open(`https://wa.me/${mob}?text=${encodeURIComponent(msg)}`, '_blank');
+      if (mob) window.open(`https://wa.me/${mob}`, '_blank');
     };
 
     window.sendEmailFinal = function() {
